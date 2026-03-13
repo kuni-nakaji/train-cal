@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>たしざん れんしゅう！</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #FFF8EC;
+      --card-bg: #FFFFFF;
+      --coral: #FF6B4A;
+      --teal: #3DD6C8;
+      --purple: #9B7FE8;
+      --yellow: #FFD93D;
+      --green: #52D68A;
+      --pink: #FF7BAC;
+      --navy: #1E1B4B;
+      --lavender: #EDE9FF;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      font-family: 'Fredoka One', cursive;
+      background: var(--bg);
+      touch-action: none;
+    }
+
+    /* Animated polka dot background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        radial-gradient(circle at 15% 15%, rgba(255,107,74,0.12) 0%, transparent 40%),
+        radial-gradient(circle at 85% 20%, rgba(61,214,200,0.12) 0%, transparent 40%),
+        radial-gradient(circle at 50% 80%, rgba(155,127,232,0.12) 0%, transparent 40%),
+        radial-gradient(circle at 80% 70%, rgba(255,217,61,0.10) 0%, transparent 30%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ─── FLOATING BG EMOJIS ─────────────────────────── */
+    #bgEmojis {
+      position: fixed; inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 0;
+    }
+    .bg-emoji {
+      position: absolute;
+      font-size: 28px;
+      animation: floatUp linear infinite;
+      opacity: 0;
+    }
+    @keyframes floatUp {
+      0%   { transform: translateY(105vh) rotate(0deg);   opacity: 0; }
+      8%   { opacity: 0.35; }
+      92%  { opacity: 0.35; }
+      100% { transform: translateY(-10vh) rotate(360deg); opacity: 0; }
+    }
+
+    /* ─── SCREEN MANAGEMENT ──────────────────────────── */
+    .screen {
+      display: none;
+      position: fixed; inset: 0;
+      align-items: center; justify-content: center;
+      flex-direction: column;
+      z-index: 10;
+      padding: 16px;
+    }
+    .screen.active { display: flex; }
+
+    /* ═══════════════════════════════════════════════════
+       START SCREEN
+    ═══════════════════════════════════════════════════ */
+    #startScreen { gap: 20px; text-align: center; }
+
+    .mascot-wrap {
+      position: relative;
+      animation: mascotFloat 3s ease-in-out infinite;
+    }
+    @keyframes mascotFloat {
+      0%,100% { transform: translateY(0) rotate(-4deg); }
+      50%      { transform: translateY(-18px) rotate(4deg); }
+    }
+    .mascot-svg {
+      width: min(180px, 28vw);
+      filter: drop-shadow(0 12px 24px rgba(155,127,232,0.35));
+    }
+
+    .title-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+
+    .title-line1 {
+      font-size: clamp(52px, 9vw, 96px);
+      line-height: 1;
+      background: linear-gradient(135deg, #FF6B4A 0%, #FF7BAC 40%, #9B7FE8 80%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 3px 6px rgba(0,0,0,0.12));
+      animation: titlePulse 4s ease-in-out infinite;
+    }
+    @keyframes titlePulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.025)} }
+
+    .title-line2 {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 900;
+      font-size: clamp(18px, 3.5vw, 28px);
+      color: #7C6FC8;
+      letter-spacing: 0.05em;
+    }
+
+    .start-stars {
+      display: flex; gap: 12px; font-size: 32px;
+      animation: starSpin 6s linear infinite;
+    }
+    @keyframes starSpin { 0%{transform:rotate(0)} 100%{transform:rotate(360deg)} }
+
+    .btn-start {
+      font-family: 'Fredoka One', cursive;
+      font-size: clamp(28px, 5vw, 42px);
+      color: white;
+      background: linear-gradient(135deg, #FF6B4A, #FF7BAC);
+      border: none; border-radius: 100px;
+      padding: clamp(16px, 2.5vw, 22px) clamp(48px, 8vw, 80px);
+      cursor: pointer;
+      box-shadow: 0 8px 0 #CC4030, 0 12px 32px rgba(255,107,74,0.45);
+      transition: transform 0.08s, box-shadow 0.08s;
+      letter-spacing: 0.06em;
+    }
+    .btn-start:active {
+      transform: translateY(5px);
+      box-shadow: 0 3px 0 #CC4030, 0 6px 16px rgba(255,107,74,0.35);
+    }
+
+    /* ═══════════════════════════════════════════════════
+       QUESTION SCREEN
+    ═══════════════════════════════════════════════════ */
+    #questionScreen {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      overflow: hidden;
+    }
+    #questionScreen.active { display: flex; }
+
+    /* Progress */
+    .progress-row {
+      width: 100%; max-width: 820px;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .progress-dots {
+      display: flex; gap: 10px; flex: 1;
+    }
+    .dot {
+      width: 20px; height: 20px; border-radius: 50%;
+      background: #E2DCFF;
+      transition: background 0.4s, transform 0.4s;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .dot.done { background: linear-gradient(135deg, #FF6B4A, #FF7BAC); transform: scale(1.15); }
+    .dot.active { background: linear-gradient(135deg, #9B7FE8, #3DD6C8); transform: scale(1.3); box-shadow: 0 0 12px rgba(155,127,232,0.6); }
+
+    .progress-text {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 900;
+      font-size: clamp(16px, 2.5vw, 22px);
+      color: #9B7FE8;
+      white-space: nowrap;
+    }
+
+    /* ─── LANDSCAPE LAYOUT (iPad横向き) ─── */
+    .question-layout {
+      width: 100%; max-width: 820px;
+      display: flex;
+      gap: 14px;
+      flex: 1;
+      min-height: 0;
+      align-items: stretch;
+    }
+
+    /* ─── PROBLEM CARD ─── */
+    .problem-card {
+      background: white;
+      border-radius: 28px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 20px 12px;
+      box-shadow: 0 8px 32px rgba(155,127,232,0.2);
+      position: relative;
+      isolation: isolate;
+      min-width: 0;
+      flex: 1.4;
+    }
+    .problem-card::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(145deg, rgba(155,127,232,0.06) 0%, transparent 60%);
+    }
+    .problem-card-ring {
+      position: absolute; inset: 0;
+      border-radius: 28px;
+      border: 3.5px solid transparent;
+      background: linear-gradient(white, white) padding-box,
+        linear-gradient(135deg, #FF6B4A, #FF7BAC, #9B7FE8, #3DD6C8) border-box;
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    .problem-label {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 900;
+      font-size: clamp(12px, 2vw, 16px);
+      color: #BEB8E8;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .problem-eq {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(4px, 1vw, 8px);
+      font-size: clamp(40px, 4vw, 58px);
+      line-height: 1;
+      color: var(--navy);
+      width: 100%;
+    }
+    .eq-num {
+      display: inline-block;
+      min-width: 0.8em;
+      text-align: center;
+    }
+    .eq-num.pop {
+      animation: numPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes numPop {
+      0%   { transform: scale(0) rotate(-15deg); opacity: 0; }
+      100% { transform: scale(1) rotate(0deg);   opacity: 1; }
+    }
+    .eq-plus  { color: var(--coral); }
+    .eq-equal { color: var(--teal); }
+    .eq-blank {
+      color: var(--purple);
+      min-width: 0.9em;
+      text-align: center;
+      border-bottom: 6px solid var(--purple);
+      transition: color 0.2s;
+    }
+
+    /* ─── RIGHT SIDE (canvas + numpad) ─── */
+    .right-side {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 2;
+      min-width: 0;
+    }
+
+    /* ─── CANVAS CARD ─── */
+    .canvas-card {
+      background: white;
+      border-radius: 24px;
+      padding: 10px 14px 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      border: 2.5px dashed #C4B8F5;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+      min-height: 0;
+    }
+    .canvas-hint {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 900;
+      font-size: clamp(13px, 2vw, 16px);
+      color: #B0A6E8;
+      display: flex; align-items: center; gap: 6px;
+    }
+    #drawCanvas {
+      width: 100%;
+      flex: 1;
+      min-height: 0;
+      border-radius: 14px;
+      background: #FAFBFF;
+      display: block;
+      cursor: crosshair;
+      touch-action: none;
+    }
+    .canvas-actions {
+      display: flex; justify-content: flex-end; gap: 8px;
+    }
+    .btn-erase {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 900;
+      font-size: clamp(14px, 2vw, 17px);
+      color: #9B7FE8;
+      background: var(--lavender);
+      border: 2px solid #C4B8F5;
+      border-radius: 50px;
+      padding: 6px 18px;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .btn-erase:active { background: #D9D0FF; transform: scale(0.95); }
+
+    /* ─── NUMPAD ─── */
+    .numpad-card {
+      background: white;
+      border-radius: 24px;
+      padding: 10px 14px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+    .numpad-hint {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 900;
+      font-size: clamp(13px, 2vw, 16px);
+      color: #B0A6E8;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    .numpad-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: clamp(5px, 1vw, 9px);
+    }
+    .num-btn {
+      font-family: 'Fredoka One', cursive;
+      font-size: clamp(22px, 3.5vw, 36px);
+      color: var(--navy);
+      background: var(--lavender);
+      border: 2.5px solid #D4CDF5;
+      border-radius: clamp(10px, 2vw, 18px);
+      padding: clamp(8px, 1.5vw, 14px) 4px;
+      cursor: pointer;
+      transition: all 0.12s;
+      box-shadow: 0 4px 0 #C4B8F5;
+      position: relative;
+    }
+    .num-btn:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #C4B8F5;
+    }
+    .num-btn.selected {
+      background: linear-gradient(135deg, #9B7FE8, #7C5FD0);
+      color: white;
+      border-color: #6A4DBF;
+      box-shadow: 0 4px 0 #5A3DAF, 0 0 16px rgba(155,127,232,0.4);
+      transform: scale(1.08);
+    }
+
+    /* ─── SUBMIT BTN ─── */
+    .btn-submit {
+      font-family: 'Fredoka One', cursive;
+      font-size: clamp(22px, 3.5vw, 32px);
+      color: white;
+      background: linear-gradient(135deg, #3DD6C8, #0ABFB0);
+      border: none; border-radius: 100px;
+      padding: clamp(14px, 2vw, 18px) 24px;
+      cursor: pointer;
+      box-shadow: 0 6px 0 #089990, 0 10px 28px rgba(61,214,200,0.4);
+      transition: transform 0.08s, box-shadow 0.08s;
+      letter-spacing: 0.06em;
+      width: 100%; max-width: 820px;
+    }
+    .btn-submit:disabled {
+      background: linear-gradient(135deg, #C8D0E0, #B8C4D4);
+      box-shadow: 0 4px 0 #A0AABB;
+      cursor: not-allowed;
+      opacity: 0.65;
+    }
+    .btn-submit:not(:disabled):active {
+      transform: translateY(4px);
+      box-shadow: 0 2px 0 #089990, 0 4px 12px rgba(61,214,200,0.3);
+    }
+
+    /* ═══════════════════════════════════════════════════
+       FEEDBACK OVERLAY
+    ═══════════════════════════════════════════════════ */
+    #feedbackOverlay {
+      position: fixed; inset: 0;
+      z-index: 50;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 12px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s;
+    }
+    #feedbackOverlay.show {
+      opacity: 1;
+      pointer-events: all;
+    }
+    #feedbackOverlay.correct { background: rgba(82,214,138,0.18); backdrop-filter: blur(4px); }
+    #feedbackOverlay.wrong   { background: rgba(255,107,74,0.12);  backdrop-filter: blur(4px); }
+
+    .fb-icon {
+      font-size: clamp(80px, 15vw, 130px);
+      animation: fbPop 0.5s cubic-bezier(0.34,1.56,0.64,1);
+      line-height: 1;
+    }
+    @keyframes fbPop {
+      0%   { transform: scale(0) rotate(-20deg); }
+      100% { transform: scale(1) rotate(0deg); }
+    }
+    .fb-text {
+      font-size: clamp(36px, 6vw, 64px);
+      animation: fbSlide 0.5s 0.1s both cubic-bezier(0.34,1.56,0.64,1);
+    }
+    @keyframes fbSlide {
+      0%   { transform: translateY(24px); opacity: 0; }
+      100% { transform: translateY(0);    opacity: 1; }
+    }
+    #feedbackOverlay.correct .fb-text { color: #16A34A; }
+    #feedbackOverlay.wrong   .fb-text { color: #DC2626; }
+
+    /* ─── CONFETTI ─── */
+    #confettiBox {
+      position: fixed; inset: 0;
+      pointer-events: none; overflow: hidden;
+      z-index: 49;
+    }
+    .cp {
+      position: absolute;
+      border-radius: 3px;
+      animation: cpFall linear forwards;
+    }
+    @keyframes cpFall {
+      0%   { opacity: 1; }
+      100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+    }
+
+    /* ═══════════════════════════════════════════════════
+       RESULTS SCREEN
+    ═══════════════════════════════════════════════════ */
+    #resultsScreen { gap: 18px; }
+
+    .results-header { text-align: center; }
+    .results-emoji { font-size: clamp(60px, 10vw, 96px); animation: fbPop 0.6s both; }
+    .results-title {
+      font-size: clamp(32px, 6vw, 58px);
+      background: linear-gradient(135deg, #FF6B4A, #9B7FE8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.15;
+    }
+
+    .score-badge {
+      background: white;
+      border-radius: 28px;
+      padding: 20px 48px;
+      text-align: center;
+      position: relative;
+      isolation: isolate;
+      box-shadow: 0 8px 32px rgba(155,127,232,0.2);
+    }
+    .score-badge::before {
+      content: '';
+      position: absolute; inset: 0;
+      border-radius: 28px;
+      border: 3.5px solid transparent;
+      background: linear-gradient(white,white) padding-box,
+        linear-gradient(135deg, #FF6B4A, #FF7BAC, #9B7FE8, #3DD6C8) border-box;
+      pointer-events: none;
+      z-index: -1;
+    }
+    .score-big {
+      font-size: clamp(56px, 9vw, 88px);
+      background: linear-gradient(135deg, #FF6B4A, #9B7FE8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+    }
+    .score-sub {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 900;
+      font-size: clamp(16px, 2.5vw, 22px);
+      color: #9B7FE8;
+    }
+
+    .answers-row {
+      display: flex; gap: 10px;
+      width: 100%; max-width: 780px;
+    }
+    .ans-card {
+      flex: 1;
+      background: white;
+      border-radius: 20px;
+      padding: 12px 6px;
+      text-align: center;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.07);
+    }
+    .ans-card.ok  { border: 3px solid #52D68A; }
+    .ans-card.ng  { border: 3px solid #FF7BAC; }
+    .ans-prob {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 900;
+      font-size: clamp(12px, 2vw, 15px);
+      color: #9B90D0;
+    }
+    .ans-mark { font-size: clamp(26px, 4vw, 40px); line-height: 1.2; }
+    .ans-correct {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 700;
+      font-size: clamp(11px, 1.8vw, 14px);
+      color: #C0BAE8;
+    }
+
+    .btn-retry {
+      font-family: 'Fredoka One', cursive;
+      font-size: clamp(24px, 4vw, 36px);
+      color: white;
+      background: linear-gradient(135deg, #FF6B4A, #FF7BAC);
+      border: none; border-radius: 100px;
+      padding: clamp(16px, 2.5vw, 20px) clamp(40px, 8vw, 72px);
+      cursor: pointer;
+      box-shadow: 0 8px 0 #CC4030, 0 12px 32px rgba(255,107,74,0.4);
+      transition: transform 0.08s, box-shadow 0.08s;
+      letter-spacing: 0.05em;
+    }
+    .btn-retry:active {
+      transform: translateY(5px);
+      box-shadow: 0 3px 0 #CC4030;
+    }
+
+    /* ─── Responsive tweak for portrait ─── */
+    @media (orientation: portrait) {
+      .question-layout { flex-direction: column; gap: 8px; }
+      .problem-card { flex: none; padding: 12px 20px; min-height: 0; }
+      .problem-eq { font-size: clamp(52px, 14vw, 80px); }
+      .right-side { flex: 1; min-height: 0; overflow: hidden; }
+      .canvas-card { flex: 1; min-height: 120px; max-height: 280px; }
+      #drawCanvas { min-height: 80px; }
+      .numpad-card { flex-shrink: 0; }
+    }
+
+    /* ─── Compact for small landscape (iPad mini / older iPads) ─── */
+    @media (orientation: landscape) and (max-height: 700px) {
+      #questionScreen { gap: 8px; padding: 8px 16px; }
+      .progress-row { margin-bottom: 0; }
+      .question-layout { gap: 10px; }
+      .problem-card { padding: 10px; }
+      .canvas-card { padding: 6px 10px 4px; }
+      #drawCanvas { min-height: 80px; }
+      .numpad-card { padding: 6px 10px; }
+      .numpad-hint { margin-bottom: 4px; }
+      .numpad-grid { gap: 5px; }
+      .num-btn { padding: 6px 4px; font-size: clamp(18px, 2.8vw, 28px); }
+      .btn-submit { padding: 12px; font-size: clamp(18px, 2.8vw, 24px); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Floating bg emojis -->
+<div id="bgEmojis"></div>
+
+<!-- Confetti layer -->
+<div id="confettiBox"></div>
+
+<!-- Feedback overlay -->
+<div id="feedbackOverlay">
+  <div class="fb-icon" id="fbIcon"></div>
+  <div class="fb-text" id="fbText"></div>
+</div>
+
+<!-- ═══════ START ═══════ -->
+<div class="screen active" id="startScreen">
+  <div class="mascot-wrap">
+    <svg class="mascot-svg" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Body -->
+      <ellipse cx="100" cy="130" rx="52" ry="44" fill="#FFD93D"/>
+      <!-- Head -->
+      <circle cx="100" cy="82" r="46" fill="#FFD93D"/>
+      <!-- Eyes -->
+      <ellipse cx="84"  cy="78" rx="9" ry="11" fill="white"/>
+      <ellipse cx="116" cy="78" rx="9" ry="11" fill="white"/>
+      <circle  cx="86"  cy="80" r="5"  fill="#1E1B4B"/>
+      <circle  cx="118" cy="80" r="5"  fill="#1E1B4B"/>
+      <circle  cx="88"  cy="77" r="2"  fill="white"/>
+      <circle  cx="120" cy="77" r="2"  fill="white"/>
+      <!-- Smile -->
+      <path d="M84 96 Q100 112 116 96" stroke="#FF6B4A" stroke-width="4" stroke-linecap="round" fill="none"/>
+      <!-- Blush -->
+      <ellipse cx="74"  cy="94" rx="9" ry="6" fill="#FF7BAC" opacity="0.45"/>
+      <ellipse cx="126" cy="94" rx="9" ry="6" fill="#FF7BAC" opacity="0.45"/>
+      <!-- Ears -->
+      <ellipse cx="56"  cy="70" rx="12" ry="18" fill="#FFD93D"/>
+      <ellipse cx="144" cy="70" rx="12" ry="18" fill="#FFD93D"/>
+      <ellipse cx="56"  cy="70" rx="7"  ry="12" fill="#FF7BAC" opacity="0.5"/>
+      <ellipse cx="144" cy="70" rx="7"  ry="12" fill="#FF7BAC" opacity="0.5"/>
+      <!-- Arms -->
+      <ellipse cx="56"  cy="135" rx="14" ry="10" fill="#FFD93D" transform="rotate(-30 56 135)"/>
+      <ellipse cx="144" cy="135" rx="14" ry="10" fill="#FFD93D" transform="rotate(30 144 135)"/>
+      <!-- Stars on body -->
+      <text x="85" y="145" font-size="22" text-anchor="middle" font-family="sans-serif">⭐</text>
+    </svg>
+  </div>
+
+  <div class="title-wrap">
+    <div class="title-line1">たしざん<br>れんしゅう！</div>
+    <div class="title-line2">✏️ ５もん ちょうせんしよう！ ✏️</div>
+  </div>
+
+  <div class="start-stars">⭐ 🌟 ✨ 🌟 ⭐</div>
+
+  <button class="btn-start" onclick="startGame()">はじめる ▶</button>
+</div>
+
+<!-- ═══════ QUESTION ═══════ -->
+<div class="screen" id="questionScreen">
+  <div class="progress-row">
+    <div class="progress-dots" id="progressDots"></div>
+    <div class="progress-text" id="progressText">1もん め</div>
+  </div>
+
+  <div class="question-layout">
+    <!-- Problem card -->
+    <div class="problem-card">
+      <div class="problem-card-ring"></div>
+      <div class="problem-label">もんだい</div>
+      <div class="problem-eq">
+        <span class="eq-num" id="eqA">3</span>
+        <span class="eq-plus">＋</span>
+        <span class="eq-num" id="eqB">4</span>
+        <span class="eq-equal">＝</span>
+        <span class="eq-blank" id="eqBlank">？</span>
+      </div>
+    </div>
+
+    <!-- Right: canvas + numpad -->
+    <div class="right-side">
+      <!-- Canvas -->
+      <div class="canvas-card">
+        <div class="canvas-hint">✏️ こたえを かいてみよう</div>
+        <canvas id="drawCanvas"></canvas>
+        <div class="canvas-actions">
+          <button class="btn-erase" onclick="clearCanvas()">🗑️ けす</button>
+        </div>
+      </div>
+
+      <!-- Numpad -->
+      <div class="numpad-card">
+        <div class="numpad-hint">👇 こたえの かずを えらんでね</div>
+        <div class="numpad-grid" id="numpadGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-submit" id="submitBtn" onclick="submitAnswer()" disabled>
+    こたえる！ ✨
+  </button>
+</div>
+
+<!-- ═══════ RESULTS ═══════ -->
+<div class="screen" id="resultsScreen">
+  <div class="results-header">
+    <div class="results-emoji" id="resEmoji">🎉</div>
+    <div class="results-title" id="resTitle">すごい！</div>
+  </div>
+
+  <div class="score-badge">
+    <div class="score-big" id="scoreBig">5/5</div>
+    <div class="score-sub" id="scoreSub">もん せいかい！</div>
+  </div>
+
+  <div class="answers-row" id="answersRow"></div>
+
+  <button class="btn-retry" onclick="restartGame()">もういちど 🔄</button>
+</div>
+
+<script>
+// ────────────────────────────────────
+// BG EMOJIS
+// ────────────────────────────────────
+(function initBg() {
+  const box = document.getElementById('bgEmojis');
+  const emojis = ['⭐','✨','🌟','💫','🎈','🌈','🍭','🎀'];
+  for (let i = 0; i < 14; i++) {
+    const el = document.createElement('div');
+    el.className = 'bg-emoji';
+    el.textContent = emojis[i % emojis.length];
+    el.style.left = (Math.random() * 100) + 'vw';
+    el.style.fontSize = (18 + Math.random() * 22) + 'px';
+    el.style.animationDuration = (10 + Math.random() * 14) + 's';
+    el.style.animationDelay = (Math.random() * 20) + 's';
+    box.appendChild(el);
+  }
+})();
+
+// ────────────────────────────────────
+// STATE
+// ────────────────────────────────────
+let problems = [], current = 0, chosen = null, results = [];
+let ctx = null, drawing = false, lx = 0, ly = 0;
+
+// ────────────────────────────────────
+// SCREEN
+// ────────────────────────────────────
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ────────────────────────────────────
+// GAME
+// ────────────────────────────────────
+function genProblems() {
+  const ps = [];
+  while (ps.length < 5) {
+    const a = 1 + Math.floor(Math.random() * 9);
+    const b = 1 + Math.floor(Math.random() * (10 - a));
+    if (a + b <= 10) ps.push({ a, b, ans: a + b });
+  }
+  return ps;
+}
+
+function startGame() {
+  problems = genProblems();
+  current = 0; results = []; chosen = null;
+  buildDots();
+  show('questionScreen');
+  loadQ(0);
+}
+
+function buildDots() {
+  const box = document.getElementById('progressDots');
+  box.innerHTML = '';
+  for (let i = 0; i < 5; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.id = 'dot' + i;
+    box.appendChild(d);
+  }
+}
+
+function loadQ(idx) {
+  const p = problems[idx];
+  chosen = null;
+
+  // Dots
+  for (let i = 0; i < 5; i++) {
+    const d = document.getElementById('dot' + i);
+    d.className = 'dot' + (i < idx ? ' done' : i === idx ? ' active' : '');
+  }
+  document.getElementById('progressText').textContent = (idx + 1) + 'もん め';
+
+  // Problem
+  const eqA = document.getElementById('eqA');
+  const eqB = document.getElementById('eqB');
+  eqA.textContent = p.a;
+  eqB.textContent = p.b;
+  document.getElementById('eqBlank').textContent = '？';
+  document.getElementById('eqBlank').style.color = 'var(--purple)';
+
+  // Pop animation
+  eqA.classList.remove('pop'); eqB.classList.remove('pop');
+  void eqA.offsetWidth;
+  eqA.classList.add('pop');
+  setTimeout(() => { eqB.classList.remove('pop'); void eqB.offsetWidth; eqB.classList.add('pop'); }, 80);
+
+  // Numpad
+  const grid = document.getElementById('numpadGrid');
+  grid.innerHTML = '';
+  for (let n = 0; n <= 10; n++) {
+    const btn = document.createElement('button');
+    btn.className = 'num-btn';
+    btn.textContent = n;
+    btn.dataset.n = n;
+    btn.onclick = () => pickNum(n, btn);
+    grid.appendChild(btn);
+  }
+
+  document.getElementById('submitBtn').disabled = true;
+
+  // Reset canvas
+  clearCanvas();
+  fitCanvas();
+}
+
+function pickNum(n, btn) {
+  chosen = n;
+  document.getElementById('eqBlank').textContent = n;
+  document.getElementById('eqBlank').style.color = 'var(--purple)';
+  document.querySelectorAll('.num-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById('submitBtn').disabled = false;
+}
+
+function submitAnswer() {
+  if (chosen === null) return;
+  const p = problems[current];
+  const ok = chosen === p.ans;
+  results.push({ ...p, given: chosen, ok });
+  showFeedback(ok, () => {
+    current++;
+    if (current >= 5) showResults();
+    else loadQ(current);
+  });
+}
+
+// ────────────────────────────────────
+// FEEDBACK
+// ────────────────────────────────────
+const OKS  = ['すごい！', 'せいかい！', 'やったね！', 'かんぺき！', 'さすが！'];
+const OKE  = ['🎉','⭐','🌟','🎊','✨'];
+const NGS  = (ans) => `こたえは ${ans} だよ！`;
+const NGE  = ['😊','🤗','💪'];
+
+function showFeedback(ok, cb) {
+  const ov = document.getElementById('feedbackOverlay');
+  const ic = document.getElementById('fbIcon');
+  const tx = document.getElementById('fbText');
+  if (ok) {
+    ov.className = 'show correct';
+    ic.textContent = OKE[Math.floor(Math.random() * OKE.length)];
+    tx.textContent = OKS[Math.floor(Math.random() * OKS.length)];
+    confetti();
+  } else {
+    ov.className = 'show wrong';
+    ic.textContent = NGE[Math.floor(Math.random() * NGE.length)];
+    tx.textContent = NGS(problems[current].ans);
+  }
+  // Re-trigger animations
+  ic.style.animation = 'none'; void ic.offsetWidth; ic.style.animation = '';
+  tx.style.animation = 'none'; void tx.offsetWidth; tx.style.animation = '';
+
+  setTimeout(() => { ov.className = ''; cb(); }, ok ? 1700 : 2200);
+}
+
+// ────────────────────────────────────
+// CONFETTI
+// ────────────────────────────────────
+const COLORS = ['#FF6B4A','#3DD6C8','#9B7FE8','#FFD93D','#52D68A','#FF7BAC','#60A5FA'];
+function confetti() {
+  const box = document.getElementById('confettiBox');
+  for (let i = 0; i < 70; i++) {
+    const p = document.createElement('div');
+    p.className = 'cp';
+    const size = 8 + Math.random() * 14;
+    p.style.cssText = `
+      left:${Math.random()*100}vw; top:-${size}px;
+      width:${size}px; height:${size}px;
+      background:${COLORS[Math.floor(Math.random()*COLORS.length)]};
+      border-radius:${Math.random()>0.5?'50%':'3px'};
+      animation-duration:${1.4+Math.random()*1.8}s;
+      animation-delay:${Math.random()*0.4}s;
+    `;
+    box.appendChild(p);
+    setTimeout(() => p.remove(), 3200);
+  }
+}
+
+// ────────────────────────────────────
+// RESULTS
+// ────────────────────────────────────
+function showResults() {
+  const score = results.filter(r => r.ok).length;
+
+  const titles = [
+    ['📚','もういちど れんしゅうしよう！'],
+    ['💪','あとすこし！'],
+    ['😊','がんばったね！'],
+    ['🌟','よくできました！'],
+    ['🎊','すごいね！ほぼかんぺき！'],
+    ['🏆','かんぺき！まんてん！！'],
+  ];
+  const [em, tt] = titles[score];
+  document.getElementById('resEmoji').textContent = em;
+  document.getElementById('resTitle').textContent = tt;
+  document.getElementById('scoreBig').textContent  = `${score}/5`;
+  document.getElementById('scoreSub').textContent  = 'もん せいかい！';
+
+  const row = document.getElementById('answersRow');
+  row.innerHTML = '';
+  results.forEach(r => {
+    const c = document.createElement('div');
+    c.className = 'ans-card ' + (r.ok ? 'ok' : 'ng');
+    c.innerHTML = `
+      <div class="ans-prob">${r.a}＋${r.b}</div>
+      <div class="ans-mark">${r.ok ? '✅' : '❌'}</div>
+      ${!r.ok ? `<div class="ans-correct">→ ${r.ans}</div>` : ''}
+    `;
+    row.appendChild(c);
+  });
+
+  show('resultsScreen');
+  if (score >= 4) { confetti(); setTimeout(confetti, 700); }
+}
+
+function restartGame() { show('startScreen'); }
+
+// ────────────────────────────────────
+// CANVAS
+// ────────────────────────────────────
+function fitCanvas() {
+  const cv = document.getElementById('drawCanvas');
+  const dpr = Math.min(window.devicePixelRatio || 2, 3);
+  const rect = cv.getBoundingClientRect();
+  cv.width  = rect.width  * dpr;
+  cv.height = rect.height * dpr;
+  ctx = cv.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.lineCap  = 'round';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 14;
+  ctx.strokeStyle = '#2A2060';
+}
+
+function clearCanvas() {
+  if (!ctx) return;
+  const cv = document.getElementById('drawCanvas');
+  ctx.clearRect(0, 0, cv.width, cv.height);
+}
+
+function canvasPos(e, cv) {
+  const r = cv.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+
+(function initCanvas() {
+  const cv = document.getElementById('drawCanvas');
+
+  // Fit on resize
+  const ro = new ResizeObserver(() => fitCanvas());
+  ro.observe(cv);
+
+  cv.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    cv.setPointerCapture(e.pointerId);
+    drawing = true;
+    const { x, y } = canvasPos(e, cv);
+    lx = x; ly = y;
+    // Dot
+    ctx.beginPath();
+    ctx.arc(x, y, (ctx.lineWidth / 2), 0, Math.PI * 2);
+    ctx.fillStyle = ctx.strokeStyle;
+    ctx.fill();
+  }, { passive: false });
+
+  cv.addEventListener('pointermove', e => {
+    e.preventDefault();
+    if (!drawing) return;
+    const { x, y } = canvasPos(e, cv);
+    // Apple Pencil pressure
+    if (e.pointerType === 'pen') {
+      ctx.lineWidth = 6 + (e.pressure || 0.5) * 16;
+    } else {
+      ctx.lineWidth = 14;
+    }
+    ctx.beginPath();
+    ctx.moveTo(lx, ly);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    lx = x; ly = y;
+  }, { passive: false });
+
+  cv.addEventListener('pointerup',     e => { e.preventDefault(); drawing = false; }, { passive: false });
+  cv.addEventListener('pointercancel', e => { drawing = false; });
+})();
+
+// Prevent page scroll when drawing
+document.addEventListener('touchmove', e => {
+  if (e.target.id === 'drawCanvas') e.preventDefault();
+}, { passive: false });
+</script>
+</body>
+</html>
