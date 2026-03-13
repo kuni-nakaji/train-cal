@@ -423,7 +423,7 @@
 const CHARS = ['0','1','2','3','4','5','6','7','8','9'];
 const NUM_CLASSES = 10;
 const IMG_SIZE = 28;
-const MODEL_KEY = 'indexeddb://math-digit-v5';
+const MODEL_KEY = 'indexeddb://math-digit-v6';
 let digitModel = null;
 
 function setTrainingUI(pct, msg) {
@@ -534,9 +534,8 @@ function renderStrokeDigit(ctx, digit, cx, cy, sc, lw) {
   ctx.restore();
 }
 
-async function generateTrainingData() {
+async function generateTrainingData(samplesPerClass = 120) {
   const size = IMG_SIZE;
-  const samplesPerClass = 150; // Reduced for faster training on iPad
 
   const tmpCanvas = document.createElement('canvas');
   tmpCanvas.width = size; tmpCanvas.height = size;
@@ -586,21 +585,42 @@ async function generateTrainingData() {
 }
 
 async function trainNewModel() {
-  setTrainingUI(5, 'データを じゅんびちゅう...');
+  setTrainingUI(5, 'AIを かくにんちゅう...');
   await tf.nextFrame();
 
-  const data = await generateTrainingData();
+  // Detect backend — CPU fallback (no WebGL) needs reduced workload
+  await tf.ready();
+  const useWebGL = tf.getBackend() === 'webgl';
+  const samplesPerClass = useWebGL ? 120 : 70;
+  const EPOCHS        = useWebGL ? 12  : 8;
+  const BATCH_SIZE    = useWebGL ? 32  : 16;
+
+  setTrainingUI(8, 'データを じゅんびちゅう...');
+  await tf.nextFrame();
+
+  const data = await generateTrainingData(samplesPerClass);
   setTrainingUI(30, 'がくしゅうを はじめます...');
   await tf.nextFrame();
 
   const m = createModel();
-  const EPOCHS = 12; // Reduced for faster training on iPad
+  const totalSamples = samplesPerClass * NUM_CLASSES;
+  const batchesPerEpoch = Math.ceil(totalSamples / BATCH_SIZE);
+  let curEpoch = 0;
 
   await m.fit(data.xs, data.ys, {
     epochs: EPOCHS,
-    batchSize: 32, // Smaller batches work better on mobile GPU
+    batchSize: BATCH_SIZE,
     shuffle: true,
     callbacks: {
+      onEpochBegin: async (epoch) => { curEpoch = epoch; },
+      // Yield to browser every 4 batches so the UI stays responsive
+      onBatchEnd: async (batch) => {
+        if (batch % 4 !== 0) return;
+        const progress = (curEpoch + (batch + 1) / batchesPerEpoch) / EPOCHS;
+        const pct = 30 + Math.round(progress * 65);
+        setTrainingUI(Math.min(pct, 94), `がくしゅうちゅう... ${curEpoch + 1}/${EPOCHS} エポック`);
+        await tf.nextFrame();
+      },
       onEpochEnd: async (epoch, logs) => {
         const pct = 30 + Math.round((epoch + 1) / EPOCHS * 65);
         const acc = Math.round((logs.acc || 0) * 100);
