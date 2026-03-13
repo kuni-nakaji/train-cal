@@ -423,7 +423,7 @@
 const CHARS = ['0','1','2','3','4','5','6','7','8','9'];
 const NUM_CLASSES = 10;
 const IMG_SIZE = 28;
-const MODEL_KEY = 'indexeddb://math-digit-v4';
+const MODEL_KEY = 'indexeddb://math-digit-v5';
 let digitModel = null;
 
 function setTrainingUI(pct, msg) {
@@ -432,16 +432,17 @@ function setTrainingUI(pct, msg) {
 }
 
 function createModel() {
+  // Lighter model for faster training on mobile/iPad
   const m = tf.sequential({
     layers: [
       tf.layers.reshape({ inputShape: [IMG_SIZE * IMG_SIZE], targetShape: [IMG_SIZE, IMG_SIZE, 1] }),
+      tf.layers.conv2d({ filters: 8, kernelSize: 3, activation: 'relu', padding: 'same' }),
+      tf.layers.maxPooling2d({ poolSize: 2 }),
       tf.layers.conv2d({ filters: 16, kernelSize: 3, activation: 'relu', padding: 'same' }),
       tf.layers.maxPooling2d({ poolSize: 2 }),
-      tf.layers.conv2d({ filters: 32, kernelSize: 3, activation: 'relu', padding: 'same' }),
-      tf.layers.maxPooling2d({ poolSize: 2 }),
       tf.layers.flatten(),
-      tf.layers.dense({ units: 64, activation: 'relu' }),
-      tf.layers.dropout({ rate: 0.25 }),
+      tf.layers.dense({ units: 32, activation: 'relu' }),
+      tf.layers.dropout({ rate: 0.2 }),
       tf.layers.dense({ units: NUM_CLASSES, activation: 'softmax' })
     ]
   });
@@ -535,14 +536,17 @@ function renderStrokeDigit(ctx, digit, cx, cy, sc, lw) {
 
 async function generateTrainingData() {
   const size = IMG_SIZE;
-  const samplesPerClass = 300;
+  const samplesPerClass = 150; // Reduced for faster training on iPad
 
   const tmpCanvas = document.createElement('canvas');
   tmpCanvas.width = size; tmpCanvas.height = size;
   const tmpCtx = tmpCanvas.getContext('2d');
 
-  const allXs = [];
-  const allYs = [];
+  const n = samplesPerClass * NUM_CLASSES;
+  // Pre-allocate typed arrays (much faster than push to regular Array)
+  const flatXs = new Float32Array(n * size * size);
+  const allYs  = new Int32Array(n);
+  let idx = 0;
 
   for (let ci = 0; ci < CHARS.length; ci++) {
     const digit = parseInt(CHARS[ci], 10);
@@ -553,40 +557,30 @@ async function generateTrainingData() {
       const rot = (Math.random() - 0.5) * 0.4;
       const tx  = (Math.random() - 0.5) * size * 0.12;
       const ty  = (Math.random() - 0.5) * size * 0.12;
-      const sc  = size * (0.038 + Math.random() * 0.018); // maps unit→pixels
-      const lw  = size * (0.055 + Math.random() * 0.045); // stroke width in pixels
+      const sc  = size * (0.038 + Math.random() * 0.018);
+      const lw  = size * (0.055 + Math.random() * 0.045);
 
       tmpCtx.save();
       tmpCtx.translate(size / 2 + tx, size / 2 + ty);
       tmpCtx.rotate(rot);
-
       renderStrokeDigit(tmpCtx, digit, 0, 0, sc, lw);
-
       tmpCtx.restore();
 
       const id = tmpCtx.getImageData(0, 0, size, size);
-      const px = new Float32Array(size * size);
+      const base = idx * size * size;
       for (let p = 0; p < size * size; p++) {
-        px[p] = Math.min(1, Math.max(0, id.data[p * 4] / 255 + (Math.random() - 0.5) * 0.06));
+        flatXs[base + p] = Math.min(1, Math.max(0, id.data[p * 4] / 255 + (Math.random() - 0.5) * 0.06));
       }
-      allXs.push(px);
-      allYs.push(ci);
+      allYs[idx] = ci;
+      idx++;
     }
-    if (ci % 2 === 0) await tf.nextFrame();
+    // Yield to browser every class (keeps UI responsive on iPad)
+    await tf.nextFrame();
   }
 
-  // Shuffle
-  const n = allXs.length;
-  for (let i = n - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [allXs[i], allXs[j]] = [allXs[j], allXs[i]];
-    [allYs[i], allYs[j]] = [allYs[j], allYs[i]];
-  }
-
-  const flat = [];
-  for (const a of allXs) for (const v of a) flat.push(v);
+  // tf.fit with shuffle:true handles shuffling per-epoch — no manual shuffle needed
   return {
-    xs: tf.tensor2d(flat, [n, IMG_SIZE * IMG_SIZE]),
+    xs: tf.tensor2d(flatXs, [n, size * size]),
     ys: tf.oneHot(tf.tensor1d(allYs, 'int32'), NUM_CLASSES)
   };
 }
@@ -600,11 +594,11 @@ async function trainNewModel() {
   await tf.nextFrame();
 
   const m = createModel();
-  const EPOCHS = 20;
+  const EPOCHS = 12; // Reduced for faster training on iPad
 
   await m.fit(data.xs, data.ys, {
     epochs: EPOCHS,
-    batchSize: 64,
+    batchSize: 32, // Smaller batches work better on mobile GPU
     shuffle: true,
     callbacks: {
       onEpochEnd: async (epoch, logs) => {
@@ -699,30 +693,52 @@ async function classifyPixels(px) {
   return { digit: bi, confidence: bc };
 }
 
-// Split wide bbox → try to find "1" on left + "0" on right = "10"
-async function tryTenRecognition(mid64, d, bbox) {
+// Try to classify left half as "1" and right half as "0" at a given splitX
+async function trySplitAt(mid64, bbox, splitX) {
   const { x0, y0, x1, y1 } = bbox;
-  const bw = x1-x0+1, bh = y1-y0+1;
-  if (bw < bh * 1.15) return null;
-
-  // Find vertical column with fewest dark pixels in middle 40%
-  const mS = Math.floor(x0 + bw*0.28), mE = Math.floor(x0 + bw*0.72);
-  let splitX = Math.floor((x0+x1)/2), minD = Infinity;
-  for (let x=mS; x<=mE; x++) {
-    let dens=0;
-    for (let y=y0; y<=y1; y++) if (d[(y*64+x)*4]<200) dens++;
-    if (dens<minD) { minD=dens; splitX=x; }
-  }
-  if (minD > bh*0.4) return null; // too dense to split
-
-  const lPx = cropNormalize(mid64, x0,       y0, splitX,   y1);
-  const rPx = cropNormalize(mid64, splitX+1,  y0, x1,       y1);
+  const lPx = cropNormalize(mid64, x0, y0, splitX, y1);
+  const rPx = cropNormalize(mid64, splitX + 1, y0, x1, y1);
   if (!lPx || !rPx) return null;
-
   const [L, R] = await Promise.all([classifyPixels(lPx), classifyPixels(rPx)]);
   if (L.digit === 1 && R.digit === 0) {
     return { digit: 10, confidence: Math.min(L.confidence, R.confidence) };
   }
+  return null;
+}
+
+// Try multiple split strategies to detect "10" (1 on left, 0 on right)
+async function tryTenRecognition(mid64, d, bbox) {
+  const { x0, y0, x1, y1 } = bbox;
+  const bw = x1 - x0 + 1, bh = y1 - y0 + 1;
+  // Attempt if bbox is at least 85% as wide as it is tall
+  // (children write "10" with 1 and 0 side-by-side, so it should be wider than a single digit)
+  if (bw < bh * 0.85) return null;
+
+  // Strategy 1: find the column with fewest dark pixels (gap between 1 and 0)
+  // Search in middle 20%–65% of bbox width
+  const mS = Math.floor(x0 + bw * 0.20);
+  const mE = Math.floor(x0 + bw * 0.65);
+  let bestSplitX = Math.floor(x0 + bw * 0.33), minDens = Infinity;
+  for (let x = mS; x <= mE; x++) {
+    let dens = 0;
+    for (let y = y0; y <= y1; y++) if (d[(y * 64 + x) * 4] < 200) dens++;
+    if (dens < minDens) { minDens = dens; bestSplitX = x; }
+  }
+  // Allow even dense splits — the "1" might be touching the "0"
+  if (minDens <= bh * 0.7) {
+    const res = await trySplitAt(mid64, bbox, bestSplitX);
+    if (res && res.confidence > 0.25) return res;
+  }
+
+  // Strategy 2: try fixed split ratios (25%, 30%, 35% of width)
+  // "1" is narrow, typically occupying left ~25-35% of the combined bbox
+  for (const ratio of [0.25, 0.30, 0.35, 0.40]) {
+    const splitX = Math.floor(x0 + bw * ratio);
+    if (Math.abs(splitX - bestSplitX) < 2) continue; // already tried nearby
+    const res = await trySplitAt(mid64, bbox, splitX);
+    if (res && res.confidence > 0.25) return res;
+  }
+
   return null;
 }
 
@@ -736,9 +752,9 @@ async function recognizeFromCanvas() {
   const fullPx = cropNormalize(mid, x0, y0, x1, y1);
   if (!fullPx) return null;
 
-  // Wide bbox → try "10" split first
+  // Try "10" split detection (confidence threshold lowered to 0.25)
   const ten = await tryTenRecognition(mid, d, bbox);
-  if (ten && ten.confidence > 0.38) return ten;
+  if (ten && ten.confidence > 0.25) return ten;
 
   return classifyPixels(fullPx);
 }
