@@ -710,33 +710,31 @@ async function trySplitAt(mid64, bbox, splitX) {
 async function tryTenRecognition(mid64, d, bbox) {
   const { x0, y0, x1, y1 } = bbox;
   const bw = x1 - x0 + 1, bh = y1 - y0 + 1;
-  // Attempt if bbox is at least 85% as wide as it is tall
-  // (children write "10" with 1 and 0 side-by-side, so it should be wider than a single digit)
-  if (bw < bh * 0.85) return null;
+  // "1" is very narrow, so "10" can have bw/bh as small as ~0.4
+  // Only skip if truly square-ish single digit (too narrow overall)
+  if (bw < bh * 0.35) return null;
 
-  // Strategy 1: find the column with fewest dark pixels (gap between 1 and 0)
-  // Search in middle 20%–65% of bbox width
-  const mS = Math.floor(x0 + bw * 0.20);
-  const mE = Math.floor(x0 + bw * 0.65);
-  let bestSplitX = Math.floor(x0 + bw * 0.33), minDens = Infinity;
+  // Strategy 1: find the column with fewest dark pixels (gap between "1" and "0")
+  // "1" typically occupies left 15–30% of the combined bbox
+  const mS = Math.floor(x0 + bw * 0.12);
+  const mE = Math.floor(x0 + bw * 0.60);
+  let bestSplitX = Math.floor(x0 + bw * 0.25), minDens = Infinity;
   for (let x = mS; x <= mE; x++) {
     let dens = 0;
     for (let y = y0; y <= y1; y++) if (d[(y * 64 + x) * 4] < 200) dens++;
     if (dens < minDens) { minDens = dens; bestSplitX = x; }
   }
-  // Allow even dense splits — the "1" might be touching the "0"
-  if (minDens <= bh * 0.7) {
+  if (minDens <= bh * 0.8) {
     const res = await trySplitAt(mid64, bbox, bestSplitX);
-    if (res && res.confidence > 0.25) return res;
+    if (res && res.confidence > 0.22) return res;
   }
 
-  // Strategy 2: try fixed split ratios (25%, 30%, 35% of width)
-  // "1" is narrow, typically occupying left ~25-35% of the combined bbox
-  for (const ratio of [0.25, 0.30, 0.35, 0.40]) {
+  // Strategy 2: try fixed split ratios — "1" is narrow so try 18–38% of width
+  for (const ratio of [0.18, 0.22, 0.26, 0.30, 0.34, 0.38]) {
     const splitX = Math.floor(x0 + bw * ratio);
-    if (Math.abs(splitX - bestSplitX) < 2) continue; // already tried nearby
+    if (Math.abs(splitX - bestSplitX) < 2) continue; // skip if already tried nearby
     const res = await trySplitAt(mid64, bbox, splitX);
-    if (res && res.confidence > 0.25) return res;
+    if (res && res.confidence > 0.22) return res;
   }
 
   return null;
@@ -752,9 +750,9 @@ async function recognizeFromCanvas() {
   const fullPx = cropNormalize(mid, x0, y0, x1, y1);
   if (!fullPx) return null;
 
-  // Try "10" split detection (confidence threshold lowered to 0.25)
+  // Try "10" split detection
   const ten = await tryTenRecognition(mid, d, bbox);
-  if (ten && ten.confidence > 0.25) return ten;
+  if (ten && ten.confidence > 0.22) return ten;
 
   return classifyPixels(fullPx);
 }
