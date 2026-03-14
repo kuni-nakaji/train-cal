@@ -982,6 +982,21 @@ function restartGame() { show('startScreen'); }
 // ══════════════════════════════════════════════════════
 // CANVAS DRAWING
 // ══════════════════════════════════════════════════════
+function drawCrosshair() {
+  if (!ctx) return;
+  const cv = document.getElementById('drawCanvas');
+  const { width: w, height: h } = cv.getBoundingClientRect();
+  ctx.save();
+  ctx.strokeStyle = 'rgba(155,127,232,0.25)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([6, 6]);
+  ctx.beginPath();
+  ctx.moveTo(0,     h / 2); ctx.lineTo(w,     h / 2); // 横
+  ctx.moveTo(w / 2, 0);     ctx.lineTo(w / 2, h);     // 縦
+  ctx.stroke();
+  ctx.restore();
+}
+
 function fitCanvas() {
   const cv = document.getElementById('drawCanvas');
   const dpr = Math.min(window.devicePixelRatio || 2, 3);
@@ -994,12 +1009,14 @@ function fitCanvas() {
   ctx.lineJoin = 'round';
   ctx.lineWidth = 14;
   ctx.strokeStyle = '#2A2060';
+  drawCrosshair();
 }
 
 function clearCanvas() {
   if (!ctx) return;
   const cv = document.getElementById('drawCanvas');
   ctx.clearRect(0, 0, cv.width, cv.height);
+  drawCrosshair();
   // Reset recognition when canvas cleared
   const rn = document.getElementById('recogNumber');
   rn.textContent = '？';
