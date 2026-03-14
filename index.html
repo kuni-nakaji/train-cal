@@ -755,6 +755,22 @@ async function tryTenRecognition(mid64, d, bbox) {
     if (res && res.confidence > 0.22) return res;
   }
 
+  // Strategy 3: geometric fallback
+  // "1" is sometimes drawn at a steep angle the model won't classify as "1",
+  // but "0" is visually very distinctive.  If the right portion is clearly "0"
+  // AND the left portion is geometrically narrow (like a "1" stroke), return "10".
+  for (const ratio of [0.20, 0.25, 0.28, 0.32]) {
+    const splitX = Math.floor(x0 + bw * ratio);
+    const rPx = cropNormalize(mid64, splitX + 1, y0, x1, y1);
+    if (!rPx) continue;
+    const R = await classifyPixels(rPx);
+    const leftW = splitX - x0 + 1;
+    // Right is clearly "0" AND left portion occupies < 35% of total width
+    if (R.digit === 0 && R.confidence > 0.75 && leftW < bw * 0.35) {
+      return { digit: 10, confidence: R.confidence * 0.82 };
+    }
+  }
+
   return null;
 }
 
@@ -787,13 +803,19 @@ function show(id) {
 }
 
 function genProblems() {
-  const ps = [];
-  while (ps.length < 5) {
-    const a = 1 + Math.floor(Math.random() * 9);
-    const b = 1 + Math.floor(Math.random() * (10 - a));
-    if (a + b <= 10) ps.push({ a, b, ans: a + b });
+  // Shuffle answers 2–10 and pick 5 without replacement → uniform distribution,
+  // "10" appears at most once per game (same probability as any other answer).
+  const pool = [2, 3, 4, 5, 6, 7, 8, 9, 10];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
   }
-  return ps;
+  return pool.slice(0, 5).map(ans => {
+    // Pick addends 1–(ans-1) so both are within 1–9
+    const a = 1 + Math.floor(Math.random() * (ans - 1));
+    const b = ans - a;
+    return { a, b, ans };
+  });
 }
 
 function startGame() {
