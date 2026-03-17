@@ -1,122 +1,3 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>たしざん れんしゅう！</title>
-  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
-</head>
-<body>
-
-<div id="bgEmojis"></div>
-<div id="confettiBox"></div>
-
-<!-- Feedback -->
-<div id="feedbackOverlay">
-  <div class="fb-icon" id="fbIcon"></div>
-  <div class="fb-text" id="fbText"></div>
-</div>
-
-<!-- ═══════ TRAINING ═══════ -->
-<div class="screen active" id="trainingScreen">
-  <div class="training-mascot">🤖</div>
-  <div class="training-title">AIが がくしゅうちゅう！</div>
-  <div class="training-bar-wrap">
-    <div class="training-bar" id="trainingBar"></div>
-  </div>
-  <div class="training-status" id="trainingStatus">はじめています...</div>
-</div>
-
-<!-- ═══════ START ═══════ -->
-<div class="screen" id="startScreen">
-  <div class="mascot-wrap">
-    <svg class="mascot-svg" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <ellipse cx="100" cy="130" rx="52" ry="44" fill="#FFD93D"/>
-      <circle cx="100" cy="82" r="46" fill="#FFD93D"/>
-      <ellipse cx="84"  cy="78" rx="9" ry="11" fill="white"/>
-      <ellipse cx="116" cy="78" rx="9" ry="11" fill="white"/>
-      <circle  cx="86"  cy="80" r="5"  fill="#1E1B4B"/>
-      <circle  cx="118" cy="80" r="5"  fill="#1E1B4B"/>
-      <circle  cx="88"  cy="77" r="2"  fill="white"/>
-      <circle  cx="120" cy="77" r="2"  fill="white"/>
-      <path d="M84 96 Q100 112 116 96" stroke="#FF6B4A" stroke-width="4" stroke-linecap="round" fill="none"/>
-      <ellipse cx="74"  cy="94" rx="9" ry="6" fill="#FF7BAC" opacity="0.45"/>
-      <ellipse cx="126" cy="94" rx="9" ry="6" fill="#FF7BAC" opacity="0.45"/>
-      <ellipse cx="56"  cy="70" rx="12" ry="18" fill="#FFD93D"/>
-      <ellipse cx="144" cy="70" rx="12" ry="18" fill="#FFD93D"/>
-      <ellipse cx="56"  cy="70" rx="7"  ry="12" fill="#FF7BAC" opacity="0.5"/>
-      <ellipse cx="144" cy="70" rx="7"  ry="12" fill="#FF7BAC" opacity="0.5"/>
-      <ellipse cx="56"  cy="135" rx="14" ry="10" fill="#FFD93D" transform="rotate(-30 56 135)"/>
-      <ellipse cx="144" cy="135" rx="14" ry="10" fill="#FFD93D" transform="rotate(30 144 135)"/>
-      <text x="85" y="145" font-size="22" text-anchor="middle" font-family="sans-serif">⭐</text>
-    </svg>
-  </div>
-  <div>
-    <div class="title-line1">たしざん<br>れんしゅう！</div>
-    <div class="title-line2">✏️ ５もん ちょうせんしよう！ ✏️</div>
-  </div>
-  <div class="start-stars"><span>⭐</span><span>🌟</span><span>✨</span><span>🌟</span><span>⭐</span></div>
-  <button class="btn-start" onclick="startGame()">はじめる ▶</button>
-</div>
-
-<!-- ═══════ QUESTION ═══════ -->
-<div class="screen" id="questionScreen">
-  <div class="progress-row">
-    <div class="progress-dots" id="progressDots"></div>
-    <div class="progress-text" id="progressText">1もん め</div>
-  </div>
-
-  <div class="question-layout">
-    <div class="problem-card">
-      <div class="problem-card-ring"></div>
-      <div class="problem-label">もんだい</div>
-      <div class="problem-eq">
-        <span class="eq-num" id="eqA">3</span>
-        <span class="eq-plus">＋</span>
-        <span class="eq-num" id="eqB">4</span>
-        <span class="eq-equal">＝</span>
-        <span class="eq-blank" id="eqBlank">？</span>
-      </div>
-    </div>
-
-    <div class="right-side">
-      <div class="canvas-card">
-        <div class="canvas-hint">✏️ こたえを かいてみよう</div>
-        <canvas id="drawCanvas"></canvas>
-        <div class="canvas-actions">
-          <button class="btn-erase" onclick="clearCanvas()">🗑️ けす</button>
-          <button class="btn-judge" id="judgeBtn" onclick="judgeDrawing()">これが こたえ！ ✨</button>
-        </div>
-      </div>
-
-      <!-- Recognition result -->
-      <div class="recog-area" id="recogArea">
-        <span class="recog-label">かいた かず →</span>
-        <span class="recog-number" id="recogNumber">？</span>
-      </div>
-    </div>
-  </div>
-
-  <button class="btn-submit" id="submitBtn" onclick="submitAnswer()" disabled>
-    こたえる！ ✨
-  </button>
-</div>
-
-<!-- ═══════ RESULTS ═══════ -->
-<div class="screen" id="resultsScreen">
-  <div class="results-emoji" id="resEmoji">🎉</div>
-  <div class="results-title" id="resTitle">すごい！</div>
-  <div class="score-badge">
-    <div class="score-big" id="scoreBig">5/5</div>
-    <div class="score-sub" id="scoreSub">もん せいかい！</div>
-  </div>
-  <div class="answers-row" id="answersRow"></div>
-  <button class="btn-retry" onclick="restartGame()">もういちど 🔄</button>
-</div>
-
-<script>
 // ══════════════════════════════════════════════════════
 // BG EMOJIS
 // ══════════════════════════════════════════════════════
@@ -141,7 +22,7 @@
 const CHARS = ['0','1','2','3','4','5','6','7','8','9'];
 const NUM_CLASSES = 10;
 const IMG_SIZE = 28;
-const MODEL_KEY = 'indexeddb://math-digit-v7';
+const MODEL_KEY = 'indexeddb://math-digit-v6';
 let digitModel = null;
 
 function setTrainingUI(pct, msg) {
@@ -187,9 +68,12 @@ function renderStrokeDigit(ctx, digit, cx, cy, sc, lw) {
       ctx.ellipse(0, 0, s * 0.55, s * 0.82, 0, 0, Math.PI * 2);
       break;
     case 1:
-      // Simple vertical stroke — matches how children write "1" (no serifs)
-      ctx.moveTo(0, -s * 0.82);
-      ctx.lineTo(0, s * 0.82);
+      // Short serif base + vertical stroke
+      ctx.moveTo(-s * 0.18, -s * 0.62);
+      ctx.lineTo(s * 0.08, -s * 0.82);
+      ctx.lineTo(s * 0.08, s * 0.82);
+      ctx.moveTo(-s * 0.3, s * 0.82);
+      ctx.lineTo(s * 0.42, s * 0.82);
       break;
     case 2:
       // Arc top-right, diagonal down-left, base
@@ -199,10 +83,10 @@ function renderStrokeDigit(ctx, digit, cx, cy, sc, lw) {
       ctx.lineTo(s * 0.52, s * 0.82);
       break;
     case 3:
-      // Two right-facing arcs — middle junction moved right to (0.08, 0) for cleaner shape
-      ctx.moveTo(-s * 0.35, -s * 0.82);
-      ctx.bezierCurveTo(s * 0.65, -s * 0.82, s * 0.65, -s * 0.02, s * 0.08, -s * 0.02);
-      ctx.bezierCurveTo(s * 0.65, -s * 0.02, s * 0.65, s * 0.82, -s * 0.35, s * 0.82);
+      // Two right-facing arcs
+      ctx.moveTo(-s * 0.38, -s * 0.82);
+      ctx.bezierCurveTo(s * 0.65, -s * 0.82, s * 0.65, -s * 0.08, -s * 0.08, -s * 0.08);
+      ctx.bezierCurveTo(s * 0.65, -s * 0.08, s * 0.65, s * 0.82, -s * 0.38, s * 0.82);
       break;
     case 4:
       // Diagonal down, horizontal, then vertical stem
@@ -233,17 +117,16 @@ function renderStrokeDigit(ctx, digit, cx, cy, sc, lw) {
       ctx.lineTo(-s * 0.25, s * 0.82);
       break;
     case 8:
-      // Two stacked ovals — moveTo must match the exact start of the bottom ellipse
-      // to avoid a spurious connecting line artifact
-      ctx.ellipse(0, -s * 0.38, s * 0.42, s * 0.38, 0, 0, Math.PI * 2);
-      ctx.moveTo(s * 0.45, s * 0.38); // (cx + rx, cy) of the bottom ellipse
-      ctx.ellipse(0, s * 0.38, s * 0.45, s * 0.40, 0, 0, Math.PI * 2);
+      // Two stacked ovals (figure-8)
+      ctx.ellipse(0, -s * 0.38, s * 0.42, s * 0.42, 0, 0, Math.PI * 2);
+      ctx.moveTo(s * 0.42, s * 0.3);
+      ctx.ellipse(0, s * 0.38, s * 0.48, s * 0.42, 0, 0, Math.PI * 2);
       break;
     case 9:
-      // Circle top + stem going straight DOWN (not left) from right edge of circle
-      ctx.ellipse(0, -s * 0.3, s * 0.48, s * 0.48, 0, 0, Math.PI * 2);
-      ctx.moveTo(s * 0.48, -s * 0.3); // right edge = exact ellipse start (cx+rx, cy)
-      ctx.bezierCurveTo(s * 0.48, s * 0.35, s * 0.15, s * 0.82, s * 0.05, s * 0.82);
+      // Circle top + stem down
+      ctx.ellipse(s * 0.05, -s * 0.28, s * 0.48, s * 0.48, 0, 0, Math.PI * 2);
+      ctx.moveTo(s * 0.52, -s * 0.28);
+      ctx.bezierCurveTo(s * 0.52, s * 0.5, s * 0.1, s * 0.92, -s * 0.28, s * 0.82);
       break;
   }
   ctx.stroke();
@@ -269,11 +152,11 @@ async function generateTrainingData(samplesPerClass = 120) {
       tmpCtx.fillStyle = '#000';
       tmpCtx.fillRect(0, 0, size, size);
 
-      const rot = (Math.random() - 0.5) * 0.55;          // ±0.275 rad (≈±16°)
-      const tx  = (Math.random() - 0.5) * size * 0.14;
-      const ty  = (Math.random() - 0.5) * size * 0.14;
-      const sc  = size * (0.038 + Math.random() * 0.020);
-      const lw  = size * (0.075 + Math.random() * 0.065); // 2.1–4.0px at 28×28 — matches actual handwriting
+      const rot = (Math.random() - 0.5) * 0.4;
+      const tx  = (Math.random() - 0.5) * size * 0.12;
+      const ty  = (Math.random() - 0.5) * size * 0.12;
+      const sc  = size * (0.038 + Math.random() * 0.018);
+      const lw  = size * (0.055 + Math.random() * 0.045);
 
       tmpCtx.save();
       tmpCtx.translate(size / 2 + tx, size / 2 + ty);
@@ -473,22 +356,6 @@ async function tryTenRecognition(mid64, d, bbox) {
     if (res && res.confidence > 0.22) return res;
   }
 
-  // Strategy 3: geometric fallback
-  // "1" is sometimes drawn at a steep angle the model won't classify as "1",
-  // but "0" is visually very distinctive.  If the right portion is clearly "0"
-  // AND the left portion is geometrically narrow (like a "1" stroke), return "10".
-  for (const ratio of [0.20, 0.25, 0.28, 0.32]) {
-    const splitX = Math.floor(x0 + bw * ratio);
-    const rPx = cropNormalize(mid64, splitX + 1, y0, x1, y1);
-    if (!rPx) continue;
-    const R = await classifyPixels(rPx);
-    const leftW = splitX - x0 + 1;
-    // Right is clearly "0" AND left portion occupies < 35% of total width
-    if (R.digit === 0 && R.confidence > 0.75 && leftW < bw * 0.35) {
-      return { digit: 10, confidence: R.confidence * 0.82 };
-    }
-  }
-
   return null;
 }
 
@@ -521,19 +388,13 @@ function show(id) {
 }
 
 function genProblems() {
-  // Shuffle answers 2–10 and pick 5 without replacement → uniform distribution,
-  // "10" appears at most once per game (same probability as any other answer).
-  const pool = [2, 3, 4, 5, 6, 7, 8, 9, 10];
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
+  const ps = [];
+  while (ps.length < 5) {
+    const a = 1 + Math.floor(Math.random() * 9);
+    const b = 1 + Math.floor(Math.random() * (10 - a));
+    if (a + b <= 10) ps.push({ a, b, ans: a + b });
   }
-  return pool.slice(0, 5).map(ans => {
-    // Pick addends 1–(ans-1) so both are within 1–9
-    const a = 1 + Math.floor(Math.random() * (ans - 1));
-    const b = ans - a;
-    return { a, b, ans };
-  });
+  return ps;
 }
 
 function startGame() {
@@ -810,6 +671,3 @@ document.addEventListener('touchmove', e => {
 // BOOT
 // ══════════════════════════════════════════════════════
 window.addEventListener('load', () => initModel());
-</script>
-</body>
-</html>
