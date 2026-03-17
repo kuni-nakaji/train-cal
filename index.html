@@ -114,8 +114,14 @@
       font-family: 'Nunito', sans-serif; font-weight: 900;
       font-size: clamp(18px, 3.5vw, 28px); color: #7C6FC8; letter-spacing: 0.05em;
     }
-    .start-stars { display: flex; gap: 12px; font-size: 32px; animation: starSpin 6s linear infinite; }
-    @keyframes starSpin { 0%{transform:rotate(0)} 100%{transform:rotate(360deg)} }
+    .start-stars { display: flex; gap: 12px; font-size: 32px; }
+    .start-stars span { display: inline-block; animation: starFloat 3s ease-in-out infinite; }
+    .start-stars span:nth-child(1) { animation-duration: 3.2s; }
+    .start-stars span:nth-child(2) { animation-duration: 2.6s; animation-delay: 0.4s; }
+    .start-stars span:nth-child(3) { animation-duration: 2.2s; animation-delay: 0.8s; }
+    .start-stars span:nth-child(4) { animation-duration: 2.8s; animation-delay: 0.2s; }
+    .start-stars span:nth-child(5) { animation-duration: 3.5s; animation-delay: 0.6s; }
+    @keyframes starFloat { 0%,100%{transform:translateY(0) rotate(0deg) scale(1)} 50%{transform:translateY(-8px) rotate(20deg) scale(1.15)} }
 
     .btn-start {
       font-family: 'Baloo 2', cursive; font-weight: 800;
@@ -372,7 +378,7 @@
     <div class="title-line1">たしざん<br>れんしゅう！</div>
     <div class="title-line2">✏️ ５もん ちょうせんしよう！ ✏️</div>
   </div>
-  <div class="start-stars">⭐ 🌟 ✨ 🌟 ⭐</div>
+  <div class="start-stars"><span>⭐</span><span>🌟</span><span>✨</span><span>🌟</span><span>⭐</span></div>
   <button class="btn-start" onclick="startGame()">はじめる ▶</button>
 </div>
 
